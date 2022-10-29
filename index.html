@@ -21,8 +21,10 @@
 <h2>Create by Vladyslav Chornyi TR-23mp</h2>
 <h2>GitHub reference: https://github.com/Vlad-Cr/Surface-Rendering</h2>
 
-<h3>Use triangles to draw the surface?</h3>
-<input type="checkbox" id="SurfaceType", onchange="UpdateSurface()">
+<div>
+    <input name="surtype" type="checkbox" id="SurfaceType", onchange="UpdateSurface()">
+    <label for="surtype">Use triangles to draw the surface?</label>
+</div>
 
 <div id="canvas-holder">
    <canvas width="600 " height="600" id="webglcanvas" style="background-color:rgb(0, 0, 0)"></canvas>

@@ -10,7 +10,6 @@ function deg2rad(angle) {
     return angle * Math.PI / 180;
 }
 
-
 // Constructor
 function Model(name) {
     this.name = name;
@@ -84,9 +83,9 @@ function draw() {
 
 function CreateSurfaceData()
 {
-    let step = 0.01;
-    let uend = 7 + 2 * step;
-    let vend = 1 + 2 * step;
+    let step = 1.0;
+    let uend = 360 + step;
+    let vend = 90 + step;
     let a = 1;
     let b = 1;
     let c = 1;
@@ -95,9 +94,54 @@ function CreateSurfaceData()
     
     for (let u = 0; u < uend; u += step) {
         for (let v = 0; v < vend; v += step) {
-            let x = v * Math.cos(u);
-            let y = v * Math.sin(u);
-            let z = c * Math.sqrt(a * a - (b * b * Math.cos(u) * Math.cos(u)));
+            let uRad =  deg2rad(u);
+            let vRad = deg2rad(v);
+
+            let vnext = deg2rad(v + step);
+            let unext = deg2rad(u + step);
+
+            /*
+            *-------*
+            |       |
+            |       |
+            0-------*
+            */
+            let x = vRad * Math.cos(uRad);
+            let y = vRad * Math.sin(uRad);
+            let z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
+            vertexList.push( x, y, z );
+
+            /*
+            *-------*
+            |       |
+            |       |
+            *-------0
+            */
+            x = vnext * Math.cos(uRad);
+            y = vnext * Math.sin(uRad);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
+            vertexList.push( x, y, z );
+
+            /*
+            0-------*
+            |       |
+            |       |
+            *-------*
+            */
+            x = vRad * Math.cos(unext);
+            y = vRad * Math.sin(unext);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
+            vertexList.push( x, y, z );
+
+            /*
+            *-------0
+            |       |
+            |       |
+            *-------*
+            */
+            x = vnext * Math.cos(unext);
+            y = vnext * Math.sin(unext);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
             vertexList.push( x, y, z );
         }
     }
