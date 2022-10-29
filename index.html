@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 
-
-<title>PA#1</title>
+<title>Practical assignment #1</title>
 <style>
     body {
-        background-color: #EEEEEE;
+        background-color: #ffffff;
     }
 </style>
 
@@ -17,14 +16,18 @@
 </head>
 <body onload="init()">
 
-<h2>A Cube with "Trackball" Mouse Rotation</h2>
+<h1>Practical assignment №1 (Surface Rendering)</h1>
+<h2>Surface: Wallis's conical edge, variant - №27</h2>
+<h2>Create by Vladyslav Chornyi TR-23mp</h2>
+<h2>GitHub reference: https://github.com/Vlad-Cr/Surface-Rendering</h2>
 
-<p id="message">Drag your mouse on the cube to rotate it.<br>
-(On a touch screen, you can use your finger.)</p>
-
+<div>
+    <input name="surtype" type="checkbox" id="SurfaceType", onchange="UpdateSurface()">
+    <label for="surtype">Use triangles to draw the surface?</label>
+</div>
 
 <div id="canvas-holder">
-   <canvas width="600" height="600" id="webglcanvas" style="background-color:red"></canvas>
+   <canvas width="600 " height="600" id="webglcanvas" style="background-color:rgb(0, 0, 0)"></canvas>
 </div>
 
 

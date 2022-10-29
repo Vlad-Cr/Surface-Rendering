@@ -4,11 +4,11 @@ let gl;                         // The webgl context.
 let surface;                    // A surface model
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
+let SurfaceTypeChackbox;
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
 }
-
 
 // Constructor
 function Model(name) {
@@ -30,7 +30,8 @@ function Model(name) {
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
    
-        gl.drawArrays(gl.LINE_STRIP, 0, this.count);
+        let DrawType = SurfaceTypeChackbox.checked ? gl.TRIANGLE_STRIP  : gl.POINTS;
+        gl.drawArrays(DrawType, 0, this.count);
     }
 }
 
@@ -53,11 +54,6 @@ function ShaderProgram(name, program) {
     }
 }
 
-
-/* Draws a colored cube, along with a set of coordinate axes.
- * (Note that the use of the above drawPrimitive function is not an efficient
- * way to draw with WebGL.  Here, the geometry is so simple that it doesn't matter.)
- */
 function draw() { 
     gl.clearColor(0,0,0,1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -80,19 +76,74 @@ function draw() {
 
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
     
-    /* Draw the six faces of a cube, with different colors. */
-    gl.uniform4fv(shProgram.iColor, [1,1,0,1] );
+    gl.uniform4fv(shProgram.iColor, [1,0,0,1] );
 
     surface.Draw();
 }
 
 function CreateSurfaceData()
 {
-    let vertexList = [];
+    let step = 1.0;
+    let uend = 360 + step;
+    let vend = 90 + step;
+    let a = 1;
+    let b = 1;
+    let c = 1;
 
-    for (let i=0; i<360; i+=5) {
-        vertexList.push( Math.sin(deg2rad(i)), 1, Math.cos(deg2rad(i)) );
-        vertexList.push( Math.sin(deg2rad(i)), 0, Math.cos(deg2rad(i)) );
+    let vertexList = [];
+    
+    for (let u = 0; u < uend; u += step) {
+        for (let v = 0; v < vend; v += step) {
+            let uRad =  deg2rad(u);
+            let vRad = deg2rad(v);
+
+            let vnext = deg2rad(v + step);
+            let unext = deg2rad(u + step);
+
+            /*
+            *-------*
+            |       |
+            |       |
+            0-------*
+            */
+            let x = vRad * Math.cos(uRad);
+            let y = vRad * Math.sin(uRad);
+            let z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
+            vertexList.push( x, y, z );
+
+            /*
+            *-------*
+            |       |
+            |       |
+            *-------0
+            */
+            x = vnext * Math.cos(uRad);
+            y = vnext * Math.sin(uRad);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
+            vertexList.push( x, y, z );
+
+            /*
+            0-------*
+            |       |
+            |       |
+            *-------*
+            */
+            x = vRad * Math.cos(unext);
+            y = vRad * Math.sin(unext);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
+            vertexList.push( x, y, z );
+
+            /*
+            *-------0
+            |       |
+            |       |
+            *-------*
+            */
+            x = vnext * Math.cos(unext);
+            y = vnext * Math.sin(unext);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
+            vertexList.push( x, y, z );
+        }
     }
 
     return vertexList;
@@ -113,7 +164,7 @@ function initGL() {
     surface = new Model('Surface');
     surface.BufferData(CreateSurfaceData());
 
-    gl.enable(gl.DEPTH_TEST);
+   // gl.enable(gl.DEPTH_TEST);
 }
 
 
@@ -148,11 +199,18 @@ function createProgram(gl, vShader, fShader) {
     return prog;
 }
 
+function UpdateSurface()
+{
+    draw();
+}
 
 /**
  * initialization function that will be called when the page has loaded
  */
 function init() {
+    SurfaceTypeChackbox = document.getElementById('SurfaceType');
+
+    // Canvas
     let canvas;
     try {
         canvas = document.getElementById("webglcanvas");
@@ -166,6 +224,8 @@ function init() {
             "<p>Sorry, could not get a WebGL graphics context.</p>";
         return;
     }
+
+    // GL
     try {
         initGL();  // initialize the WebGL graphics context
     }
