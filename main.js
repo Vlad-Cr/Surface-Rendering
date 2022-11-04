@@ -30,7 +30,7 @@ function Model(name) {
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
    
-        let DrawType = SurfaceTypeChackbox.checked ? gl.TRIANGLE_STRIP  : gl.POINTS;
+        let DrawType = SurfaceTypeChackbox.checked ? gl.TRIANGLE_STRIP  : gl.LINE_LOOP;
         gl.drawArrays(DrawType, 0, this.count);
     }
 }
@@ -83,7 +83,7 @@ function draw() {
 
 function CreateSurfaceData()
 {
-    let step = 1.0;
+    let step = 5.0;
     let uend = 360 + step;
     let vend = 90 + step;
     let a = 1;
@@ -123,17 +123,6 @@ function CreateSurfaceData()
             vertexList.push( x, y, z );
 
             /*
-            0-------*
-            |       |
-            |       |
-            *-------*
-            */
-            x = vRad * Math.cos(unext);
-            y = vRad * Math.sin(unext);
-            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
-            vertexList.push( x, y, z );
-
-            /*
             *-------0
             |       |
             |       |
@@ -141,6 +130,17 @@ function CreateSurfaceData()
             */
             x = vnext * Math.cos(unext);
             y = vnext * Math.sin(unext);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
+            vertexList.push( x, y, z );
+
+            /*
+            0-------*
+            |       |
+            |       |
+            *-------*
+            */
+            x = vRad * Math.cos(unext);
+            y = vRad * Math.sin(unext);
             z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
             vertexList.push( x, y, z );
         }
