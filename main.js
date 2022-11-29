@@ -4,7 +4,6 @@ let gl;                         // The webgl context.
 let surface;                    // A surface model
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
-let SurfaceTypeChackbox;
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -29,12 +28,9 @@ function Model(name) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
-   
-        let DrawType = SurfaceTypeChackbox.checked ? gl.TRIANGLE_STRIP  : gl.LINE_LOOP;
-        gl.drawArrays(DrawType, 0, this.count);
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
     }
 }
-
 
 // Constructor
 function ShaderProgram(name, program) {
@@ -97,7 +93,6 @@ function CreateSurfaceData()
             let uRad =  deg2rad(u);
             let vRad = deg2rad(v);
 
-            let vnext = deg2rad(v + step);
             let unext = deg2rad(u + step);
 
             /*
@@ -109,28 +104,6 @@ function CreateSurfaceData()
             let x = vRad * Math.cos(uRad);
             let y = vRad * Math.sin(uRad);
             let z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
-            vertexList.push( x, y, z );
-
-            /*
-            *-------*
-            |       |
-            |       |
-            *-------0
-            */
-            x = vnext * Math.cos(uRad);
-            y = vnext * Math.sin(uRad);
-            z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
-            vertexList.push( x, y, z );
-
-            /*
-            *-------0
-            |       |
-            |       |
-            *-------*
-            */
-            x = vnext * Math.cos(unext);
-            y = vnext * Math.sin(unext);
-            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
             vertexList.push( x, y, z );
 
             /*
@@ -199,17 +172,10 @@ function createProgram(gl, vShader, fShader) {
     return prog;
 }
 
-function UpdateSurface()
-{
-    draw();
-}
-
 /**
  * initialization function that will be called when the page has loaded
  */
 function init() {
-    SurfaceTypeChackbox = document.getElementById('SurfaceType');
-
     // Canvas
     let canvas;
     try {
