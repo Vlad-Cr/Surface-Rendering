@@ -13,12 +13,16 @@ function deg2rad(angle) {
 function Model(name) {
     this.name = name;
     this.iVertexBuffer = gl.createBuffer();
+    this.iNormalBuffer = gl.createBuffer();
     this.count = 0;
 
-    this.BufferData = function(vertices) {
+    this.BufferData = function(vertices, normals) {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
+       
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STREAM_DRAW);
 
         this.count = vertices.length/3;
     }
@@ -28,6 +32,11 @@ function Model(name) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(shProgram.iAttribVertex);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer);
+        gl.vertexAttribPointer(shProgram.iNormalVertex, 3, gl.FLOAT, true, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iNormalVertex);
+
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
     }
 }
@@ -40,10 +49,14 @@ function ShaderProgram(name, program) {
 
     // Location of the attribute variable in the shader program.
     this.iAttribVertex = -1;
+    // Location of the normal variable in the shader program.
+    this.iNormalVertex = -1;
     // Location of the uniform specifying a color for the primitive.
     this.iColor = -1;
     // Location of the uniform matrix representing the combined transformation.
     this.iModelViewProjectionMatrix = -1;
+
+    this.iReverseLightDirectionLocation = -1
 
     this.Use = function() {
         gl.useProgram(this.prog);
@@ -51,8 +64,13 @@ function ShaderProgram(name, program) {
 }
 
 function draw() { 
-    gl.clearColor(0,0,0,1);
+    gl.clearColor(1,1,1,1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    gl.enable(gl.CULL_FACE);
+
+    // Enable the depth buffer
+    gl.enable(gl.DEPTH_TEST);
     
     /* Set the values of the projection transformation */
     let projection = m4.perspective(Math.PI/8, 1, 8, 12); 
@@ -72,7 +90,9 @@ function draw() {
 
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
     
-    gl.uniform4fv(shProgram.iColor, [1,0,0,1] );
+    gl.uniform4fv(shProgram.iColor, [0.5,0.5,0.5,1] );
+
+    gl.uniform3fv(shProgram.iReverseLightDirectionLocation, m4.normalize([0.5, 0.7, 1]));
 
     surface.Draw();
 }
@@ -122,6 +142,91 @@ function CreateSurfaceData()
     return vertexList;
 }
 
+function CreateNormalsData()
+{
+    let step = 5.0;
+    let uend = 360 + step;
+    let vend = 90 + step;
+    let a = 1;
+    let b = 1;
+    let c = 1;
+
+    let normalsList = [];
+    
+    for (let u = 0; u < uend; u += step) {
+        for (let v = 0; v < vend; v += step) {
+            let currentPoints = [];
+            let uRad =  deg2rad(u);
+            let vRad = deg2rad(v);
+
+            let vnext = deg2rad(v + step);
+            let unext = deg2rad(u + step);
+
+            /*
+            *-------*
+            |       |
+            |       |
+            0-------*
+            */
+            let x = vRad * Math.cos(uRad);
+            let y = vRad * Math.sin(uRad);
+            let z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
+            currentPoints.push( [x, y, z] );
+
+            /*
+            1-------*
+            |       |
+            |       |
+            *-------*
+            */
+            x = vRad * Math.cos(unext);
+            y = vRad * Math.sin(unext);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
+            currentPoints.push( [x, y, z] );
+
+            /*
+            *-------*
+            |       |
+            |       |
+            *-------2
+            */
+            x = vnext * Math.cos(uRad);
+            y = vnext * Math.sin(uRad);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
+            currentPoints.push( [x, y, z] );
+
+             /*
+            *-------3
+            |       |
+            |       |
+            *-------*
+            */
+            x = vnext * Math.cos(unext);
+            y = vnext * Math.sin(unext);
+            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
+            currentPoints.push( [x, y, z] );
+
+            let result = [];
+            result = m4.cross(CreateVector(currentPoints[2], currentPoints[0]), CreateVector(currentPoints[1], currentPoints[0]));
+            normalsList.push(result[0], result[1], result[2]);
+
+            result = [];
+            result = m4.cross(CreateVector(currentPoints[0], currentPoints[1]), CreateVector(currentPoints[3], currentPoints[1]));
+            normalsList.push(result[0], result[1], result[2]);
+
+             //////////////////////////////
+        }
+    }
+
+    return normalsList;
+}
+
+function CreateVector(a, b)
+{
+    return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+}
+
+
 
 /* Initialize the WebGL context. Called from init() */
 function initGL() {
@@ -131,11 +236,13 @@ function initGL() {
     shProgram.Use();
 
     shProgram.iAttribVertex              = gl.getAttribLocation(prog, "vertex");
+    shProgram.iNormalVertex              = gl.getAttribLocation(prog, "normal");
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
     shProgram.iColor                     = gl.getUniformLocation(prog, "color");
+    shProgram.iReverseLightDirectionLocation = gl.getUniformLocation(prog, "reverseLightDirection");
 
     surface = new Model('Surface');
-    surface.BufferData(CreateSurfaceData());
+    surface.BufferData(CreateSurfaceData(), CreateNormalsData());
 
    // gl.enable(gl.DEPTH_TEST);
 }
