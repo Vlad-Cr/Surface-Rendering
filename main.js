@@ -4,6 +4,8 @@ let gl;                         // The webgl context.
 let surface;                    // A surface model
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
+let TParam = 0;
+let InputCounter = 0.0;
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -60,6 +62,12 @@ function ShaderProgram(name, program) {
 
     this.iReverseLightDirectionLocation = -1
 
+    this.iLightWorldPosition = -1;
+
+    this.iWorldMatrix = -1;
+
+    this.iViewWorldPosition = -1;
+
     this.Use = function() {
         gl.useProgram(this.prog);
     }
@@ -79,12 +87,17 @@ function draw() {
     
     /* Get the view matrix from the SimpleRotator object.*/
     let modelView = spaceball.getViewMatrix();
+    
+    gl.uniform3fv(shProgram.iViewWorldPosition, [0,0,0]);
 
     let rotateToPointZero = m4.axisRotation([0.707,0.707,0], 0.7);
     let translateToPointZero = m4.translation(0,0,-10);
 
     let matAccum0 = m4.multiply(rotateToPointZero, modelView );
     let matAccum1 = m4.multiply(translateToPointZero, matAccum0 );
+
+    let parabolaParams = CalcParabola();
+    gl.uniform3fv(shProgram.iLightWorldPosition, parabolaParams);
 
     /* Multiply the projection matrix times the modelview matrix to give the
        combined transformation matrix, and send that to the shader program. */
@@ -94,6 +107,7 @@ function draw() {
 
     gl.uniformMatrix4fv(shProgram.iWorldInverseTranspose, false, worldInverseTransposeMatrix);
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
+    gl.uniformMatrix4fv(shProgram.iWorldMatrix, false, matAccum1 );
     
     gl.uniform4fv(shProgram.iColor, [0.5,0.5,0.5,1] );
 
@@ -233,6 +247,9 @@ function initGL() {
     shProgram.iWorldInverseTranspose     = gl.getUniformLocation(prog, "WorldInverseTranspose");
     shProgram.iColor                     = gl.getUniformLocation(prog, "color");
     shProgram.iReverseLightDirectionLocation = gl.getUniformLocation(prog, "reverseLightDirection");
+    shProgram.iLightWorldPosition        = gl.getUniformLocation(prog, "LightWorldPosition");
+    shProgram.iWorldMatrix               = gl.getUniformLocation(prog, "WorldMatrix");
+    shProgram.iViewWorldPosition         = gl.getUniformLocation(prog, "ViewWorldPosition");
 
     surface = new Model('Surface');
     let SurfaceData = CreateSurfaceData();
@@ -305,4 +322,38 @@ function init() {
     spaceball = new TrackballRotator(canvas, draw, 0);
 
     draw();
+}
+
+window.addEventListener("keydown", function (event) {  
+    switch (event.key) {
+      case "ArrowLeft":
+        ProcessArrowLeftDown();
+        break;
+      case "ArrowRight":
+        ProcessArrowRightDown();
+        break;
+      default:
+        return; 
+    }
+});
+
+function ProcessArrowLeftDown()
+{
+    InputCounter -= 0.1;
+    TParam = Math.sin(InputCounter) * 2;
+
+    draw();
+}
+
+function ProcessArrowRightDown()
+{
+    InputCounter += 0.1;
+    TParam = Math.sin(InputCounter) * 2;
+
+    draw();
+}
+
+function CalcParabola()
+{
+    return [TParam, TParam * TParam, 20];
 }
