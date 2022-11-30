@@ -4,6 +4,7 @@
 const vertexShaderSource = `
 attribute vec3 vertex;
 attribute vec3 normal;
+
 uniform mat4 ModelViewProjectionMatrix;
 uniform mat4 WorldInverseTranspose;
 uniform mat4 WorldMatrix;
@@ -16,8 +17,10 @@ varying vec3 v_surfaceToView;
 
 void main() {
     gl_Position = ModelViewProjectionMatrix * vec4(vertex,1.0);
+
     v_normal = mat3(WorldInverseTranspose) * normal;
-    vec3 surfaceWorldPosition = (WorldMatrix * vec4(vertex, 0)).xyz;
+
+    vec3 surfaceWorldPosition = (WorldMatrix * vec4(vertex, 1.0)).xyz;
     v_surfaceToLight = LightWorldPosition - surfaceWorldPosition;
     v_surfaceToView = ViewWorldPosition - surfaceWorldPosition;
 }`;
@@ -32,7 +35,7 @@ const fragmentShaderSource = `
 #endif
 
 uniform vec4 color;
-uniform vec3 reverseLightDirection;
+uniform vec3 LightDirection;
 
 varying vec3 v_normal;
 varying vec3 v_surfaceToLight;
@@ -44,14 +47,15 @@ void main() {
     vec3 surfaceToLightDirection = normalize(v_surfaceToLight);
     vec3 surfaceToViewDirection = normalize(v_surfaceToView);
     vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
-
-    float light = dot(normal, surfaceToLightDirection);
     
-    float shininess = 5.0;
-    float specular = 0.0;
-    if (light > 0.0) {
-        specular = pow(dot(normal, halfVector), shininess);
-    }
+    float shininess = 8.0;
+    float Degrees = 5.0;
+    float limit = cos(Degrees * 3.1415 / 180.0);
+
+    float dotFromDirection = dot(surfaceToLightDirection, -LightDirection);
+    float inLight = step(limit, dotFromDirection);
+    float light = inLight * dot(normal, surfaceToLightDirection);
+    float specular = inLight * pow(dot(normal, halfVector), shininess);
     
     gl_FragColor = color;
     gl_FragColor.rgb *= light;
