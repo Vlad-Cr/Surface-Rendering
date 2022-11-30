@@ -56,6 +56,8 @@ function ShaderProgram(name, program) {
     // Location of the uniform matrix representing the combined transformation.
     this.iModelViewProjectionMatrix = -1;
 
+    this.iWorldMatrix = -1;
+
     this.iReverseLightDirectionLocation = -1
 
     this.Use = function() {
@@ -83,11 +85,14 @@ function draw() {
 
     let matAccum0 = m4.multiply(rotateToPointZero, modelView );
     let matAccum1 = m4.multiply(translateToPointZero, matAccum0 );
-        
+
     /* Multiply the projection matrix times the modelview matrix to give the
        combined transformation matrix, and send that to the shader program. */
     let modelViewProjection = m4.multiply(projection, matAccum1 );
+    var worldInverseMatrix = m4.inverse(matAccum1);
+    var worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
 
+    gl.uniformMatrix4fv(shProgram.iWorldInverseTranspose, false, worldInverseTransposeMatrix);
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
     
     gl.uniform4fv(shProgram.iColor, [0.5,0.5,0.5,1] );
@@ -99,21 +104,18 @@ function draw() {
 
 function CreateSurfaceData()
 {
-    let step = 5.0;
+    let step = 1.0;
     let uend = 360 + step;
     let vend = 90 + step;
-    let a = 1;
-    let b = 1;
-    let c = 1;
+    let DeltaU = 0.0001;
+    let DeltaV = 0.0001;
 
     let vertexList = [];
-    
+    let normalsList = [];
+
     for (let u = 0; u < uend; u += step) {
         for (let v = 0; v < vend; v += step) {
-            let uRad =  deg2rad(u);
-            let vRad = deg2rad(v);
-
-            let unext = deg2rad(u + step);
+            let unext = u + step;
 
             /*
             *-------*
@@ -121,9 +123,9 @@ function CreateSurfaceData()
             |       |
             0-------*
             */
-            let x = vRad * Math.cos(uRad);
-            let y = vRad * Math.sin(uRad);
-            let z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
+            let x = CalcX(u, v);
+            let y = CalcY(u, v);
+            let z = CalcZ(u, v);
             vertexList.push( x, y, z );
 
             /*
@@ -132,101 +134,91 @@ function CreateSurfaceData()
             |       |
             *-------*
             */
-            x = vRad * Math.cos(unext);
-            y = vRad * Math.sin(unext);
-            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
+            x = CalcX(unext, v);
+            y = CalcY(unext, v);
+            z = CalcZ(unext, v);
             vertexList.push( x, y, z );
+
+            // Normals
+
+            let DerivativeU = CalcDerivativeU(u, v, DeltaU);
+            let DerivativeV = CalcDerivativeV(u, v, DeltaV);
+
+            let result = m4.cross(DerivativeV, DerivativeU);
+            normalsList.push(result[0], result[1], result[2]);
+
+            DerivativeU = CalcDerivativeU(unext, v, DeltaU);
+            DerivativeV = CalcDerivativeV(unext, v, DeltaV);
+
+            result = m4.cross(DerivativeV, DerivativeU);
+            normalsList.push(result[0], result[1], result[2]);
         }
     }
 
-    return vertexList;
+    return [vertexList, normalsList];
 }
 
-function CreateNormalsData()
+function CalcX(u, v)
 {
-    let step = 5.0;
-    let uend = 360 + step;
-    let vend = 90 + step;
+    let uRad =  deg2rad(u);
+    let vRad = deg2rad(v);
+
+    return vRad * Math.cos(uRad);
+}
+
+function CalcY(u, v)
+{
+    let uRad =  deg2rad(u);
+    let vRad = deg2rad(v);
+
+    return vRad * Math.sin(uRad);
+}
+
+function CalcZ(u, v)
+{
     let a = 1;
     let b = 1;
     let c = 1;
 
-    let normalsList = [];
-    
-    for (let u = 0; u < uend; u += step) {
-        for (let v = 0; v < vend; v += step) {
-            let currentPoints = [];
-            let uRad =  deg2rad(u);
-            let vRad = deg2rad(v);
+    let uRad =  deg2rad(u);
+    let vRad = deg2rad(v);
 
-            let vnext = deg2rad(v + step);
-            let unext = deg2rad(u + step);
-
-            /*
-            *-------*
-            |       |
-            |       |
-            0-------*
-            */
-            let x = vRad * Math.cos(uRad);
-            let y = vRad * Math.sin(uRad);
-            let z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
-            currentPoints.push( [x, y, z] );
-
-            /*
-            1-------*
-            |       |
-            |       |
-            *-------*
-            */
-            x = vRad * Math.cos(unext);
-            y = vRad * Math.sin(unext);
-            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
-            currentPoints.push( [x, y, z] );
-
-            /*
-            *-------*
-            |       |
-            |       |
-            *-------2
-            */
-            x = vnext * Math.cos(uRad);
-            y = vnext * Math.sin(uRad);
-            z = c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
-            currentPoints.push( [x, y, z] );
-
-             /*
-            *-------3
-            |       |
-            |       |
-            *-------*
-            */
-            x = vnext * Math.cos(unext);
-            y = vnext * Math.sin(unext);
-            z = c * Math.sqrt(a * a - (b * b * Math.cos(unext) * Math.cos(unext)));
-            currentPoints.push( [x, y, z] );
-
-            let result = [];
-            result = m4.cross(CreateVector(currentPoints[2], currentPoints[0]), CreateVector(currentPoints[1], currentPoints[0]));
-            normalsList.push(result[0], result[1], result[2]);
-
-            result = [];
-            result = m4.cross(CreateVector(currentPoints[0], currentPoints[1]), CreateVector(currentPoints[3], currentPoints[1]));
-            normalsList.push(result[0], result[1], result[2]);
-
-             //////////////////////////////
-        }
-    }
-
-    return normalsList;
+    return c * Math.sqrt(a * a - (b * b * Math.cos(uRad) * Math.cos(uRad)));
 }
 
-function CreateVector(a, b)
+function CalcDerivativeU(u, v, uDelta)
 {
-    return [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
+    let x = CalcX(u, v);
+    let y = CalcY(u, v);
+    let z = CalcZ(u, v);
+
+    let Dx = CalcX(u + uDelta, v);
+    let Dy = CalcY(u + uDelta, v);
+    let Dz = CalcZ(u + uDelta, v);
+
+    let Dxdu = (Dx - x) / deg2rad(uDelta);
+    let Dydu = (Dy - y) / deg2rad(uDelta);
+    let Dzdu = (Dz - z) / deg2rad(uDelta);
+
+    return [Dxdu, Dydu, Dzdu];
 }
 
+function CalcDerivativeV(u, v, vDelta)
+{
+    let x = CalcX(u, v);
+    let y = CalcY(u, v);
+    let z = CalcZ(u, v);
 
+    let Dx = CalcX(u, v + vDelta);
+    let Dy = CalcY(u, v + vDelta);
+    let Dz = CalcZ(u, v + vDelta);
+
+    let Dxdv = (Dx - x) / deg2rad(vDelta);
+    let Dydv = (Dy - y) / deg2rad(vDelta);
+    let Dzdv = (Dz - z) / deg2rad(vDelta);
+
+    return [Dxdv, Dydv, Dzdv];
+}
 
 /* Initialize the WebGL context. Called from init() */
 function initGL() {
@@ -238,11 +230,13 @@ function initGL() {
     shProgram.iAttribVertex              = gl.getAttribLocation(prog, "vertex");
     shProgram.iNormalVertex              = gl.getAttribLocation(prog, "normal");
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
+    shProgram.iWorldInverseTranspose     = gl.getUniformLocation(prog, "WorldInverseTranspose");
     shProgram.iColor                     = gl.getUniformLocation(prog, "color");
     shProgram.iReverseLightDirectionLocation = gl.getUniformLocation(prog, "reverseLightDirection");
 
     surface = new Model('Surface');
-    surface.BufferData(CreateSurfaceData(), CreateNormalsData());
+    let SurfaceData = CreateSurfaceData();
+    surface.BufferData(SurfaceData[0], SurfaceData[1]);
 
    // gl.enable(gl.DEPTH_TEST);
 }

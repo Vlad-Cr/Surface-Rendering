@@ -5,12 +5,13 @@ const vertexShaderSource = `
 attribute vec3 vertex;
 attribute vec3 normal;
 uniform mat4 ModelViewProjectionMatrix;
+uniform mat4 WorldInverseTranspose;
 
 varying vec3 v_normal;
 
 void main() {
     gl_Position = ModelViewProjectionMatrix * vec4(vertex,1.0);
-    v_normal = normal;
+    v_normal = mat3(WorldInverseTranspose) * normal;
 }`;
 
 
