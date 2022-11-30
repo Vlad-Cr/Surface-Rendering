@@ -67,7 +67,7 @@ function ShaderProgram(name, program) {
 }
 
 function draw() { 
-    gl.clearColor(1,1,1,1);
+    gl.clearColor(0,0,0,1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.enable(gl.CULL_FACE);
@@ -92,12 +92,12 @@ function draw() {
     gl.uniform3fv(shProgram.iViewWorldPosition, [0, 0, 0]); // ?
 
     //[Math.sin(InputCounter) * 2, 8, -10]
-    gl.uniform3fv(shProgram.iLightWorldPosition, CalcParabola()); // Parabola
+    gl.uniform3fv(shProgram.iLightWorldPosition, CalcParabola());
     gl.uniform3fv(shProgram.iLightDirection, [0, -1, 0]);
 
     gl.uniformMatrix4fv(shProgram.iWorldInverseTranspose, false, worldInverseTransposeMatrix);
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
-    gl.uniformMatrix4fv(shProgram.iWorldMatrix, false, WorldMatrix );
+    gl.uniformMatrix4fv(shProgram.iWorldMatrix, false, matAccum1 );
     
     gl.uniform4fv(shProgram.iColor, [0.5,0.5,0.5,1] );
 
@@ -342,6 +342,6 @@ function ProcessArrowRightDown()
 
 function CalcParabola()
 {
-    let TParam = Math.sin(InputCounter);
+    let TParam = Math.sin(InputCounter) * 1.2;
     return [TParam, 6, -10 + (TParam * TParam)];
 }

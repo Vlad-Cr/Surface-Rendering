@@ -49,11 +49,12 @@ void main() {
     vec3 halfVector = normalize(surfaceToLightDirection + surfaceToViewDirection);
     
     float shininess = 8.0;
-    float Degrees = 5.0;
-    float limit = cos(Degrees * 3.1415 / 180.0);
 
+    float innerLimit = cos(5.0 * 3.1415 / 180.0);
+    float outerLimit = cos(15.0 * 3.1415 / 180.0);
+    
     float dotFromDirection = dot(surfaceToLightDirection, -LightDirection);
-    float inLight = step(limit, dotFromDirection);
+    float inLight = smoothstep(outerLimit, innerLimit, dotFromDirection);
     float light = inLight * dot(normal, surfaceToLightDirection);
     float specular = inLight * pow(dot(normal, halfVector), shininess);
     
