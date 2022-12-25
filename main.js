@@ -15,15 +15,20 @@ function Model(name) {
     this.name = name;
     this.iVertexBuffer = gl.createBuffer();
     this.iNormalBuffer = gl.createBuffer();
+    this.iTextureBuffer = gl.createBuffer();
+
     this.count = 0;
 
-    this.BufferData = function(vertices, normals) {
+    this.BufferData = function(vertices, normals, texCoords) {
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STREAM_DRAW);
        
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iNormalBuffer)
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(normals), gl.STREAM_DRAW);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STREAM_DRAW);
 
         this.count = vertices.length/3;
     }
@@ -38,6 +43,10 @@ function Model(name) {
         gl.vertexAttribPointer(shProgram.iNormalVertex, 3, gl.FLOAT, true, 0, 0);
         gl.enableVertexAttribArray(shProgram.iNormalVertex);
 
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer);
+        gl.vertexAttribPointer(shProgram.iTextureCoords, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iTextureCoords);
+
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
     }
 }
@@ -50,6 +59,8 @@ function ShaderProgram(name, program) {
 
     this.iAttribVertex = -1;
     this.iNormalVertex = -1;
+    this.iTextureCoords = -1;
+
     this.iColor = -1;
 
     this.iModelViewProjectionMatrix = -1;
@@ -60,6 +71,8 @@ function ShaderProgram(name, program) {
     this.iLightDirection = -1;
 
     this.iViewWorldPosition = -1;
+
+    this.iTexture = -1;
    
     this.Use = function() {
         gl.useProgram(this.prog);
@@ -101,6 +114,8 @@ function draw() {
     
     gl.uniform4fv(shProgram.iColor, [0.5,0.5,0.5,1] );
 
+    gl.uniform1i(shProgram.iTexture, 0);
+
     surface.Draw();
 }
 
@@ -114,6 +129,7 @@ function CreateSurfaceData()
 
     let vertexList = [];
     let normalsList = [];
+    let textCoords = [];
 
     for (let u = 0; u < uend; u += step) {
         for (let v = 0; v < vend; v += step) {
@@ -154,10 +170,13 @@ function CreateSurfaceData()
 
             result = m4.cross(DerivativeV, DerivativeU);
             normalsList.push(result[0], result[1], result[2]);
+
+            textCoords.push(u / uend, v / vend);
+            textCoords.push(unext / uend, v / vend);
         }
     }
 
-    return [vertexList, normalsList];
+    return [vertexList, normalsList, textCoords];
 }
 
 function CalcX(u, v)
@@ -231,6 +250,8 @@ function initGL() {
 
     shProgram.iAttribVertex              = gl.getAttribLocation(prog, "vertex");
     shProgram.iNormalVertex              = gl.getAttribLocation(prog, "normal");
+    shProgram.iTextureCoords             = gl.getAttribLocation(prog, "texcoord");
+    
     shProgram.iColor                     = gl.getUniformLocation(prog, "color");
 
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
@@ -238,13 +259,15 @@ function initGL() {
     shProgram.iWorldMatrix               = gl.getUniformLocation(prog, "WorldMatrix");
 
     shProgram.iLightWorldPosition        = gl.getUniformLocation(prog, "LightWorldPosition");
-    shProgram.iLightDirection             = gl.getUniformLocation(prog, "LightDirection");
+    shProgram.iLightDirection            = gl.getUniformLocation(prog, "LightDirection");
 
     shProgram.iViewWorldPosition         = gl.getUniformLocation(prog, "ViewWorldPosition");
     
+    shProgram.iTexture                   = gl.getUniformLocation(prog, "u_texture");
+
     surface = new Model('Surface');
     let SurfaceData = CreateSurfaceData();
-    surface.BufferData(SurfaceData[0], SurfaceData[1]);
+    surface.BufferData(SurfaceData[0], SurfaceData[1], SurfaceData[2]);
 
    // gl.enable(gl.DEPTH_TEST);
 }
@@ -312,7 +335,7 @@ function init() {
 
     spaceball = new TrackballRotator(canvas, draw, 0);
 
-    draw();
+    LoadTexture();
 }
 
 window.addEventListener("keydown", function (event) {  
@@ -344,4 +367,26 @@ function CalcParabola()
 {
     let TParam = Math.sin(InputCounter) * 1.2;
     return [TParam, 6, -10 + (TParam * TParam)];
+}
+
+function LoadTexture()
+{
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+ 
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
+              new Uint8Array([0, 0, 255, 255]));
+ 
+    var image = new Image();
+    image.crossOrigin = "anonymous"
+    image.src = "https://i1.photo.2gis.com/images/profile/30258560049997155_fe3f.jpg";
+    image.addEventListener('load', function() {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
+        gl.generateMipmap(gl.TEXTURE_2D);
+
+        console.log("Texture is loaded!");
+
+        draw();
+    });
 }

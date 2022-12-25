@@ -4,6 +4,7 @@
 const vertexShaderSource = `
 attribute vec3 vertex;
 attribute vec3 normal;
+attribute vec2 texcoord;
 
 uniform mat4 ModelViewProjectionMatrix;
 uniform mat4 WorldInverseTranspose;
@@ -14,6 +15,7 @@ uniform vec3 ViewWorldPosition;
 varying vec3 v_normal;
 varying vec3 v_surfaceToLight;
 varying vec3 v_surfaceToView;
+varying vec2 v_texcoord;
 
 void main() {
     gl_Position = ModelViewProjectionMatrix * vec4(vertex,1.0);
@@ -23,6 +25,8 @@ void main() {
     vec3 surfaceWorldPosition = (WorldMatrix * vec4(vertex, 1.0)).xyz;
     v_surfaceToLight = LightWorldPosition - surfaceWorldPosition;
     v_surfaceToView = ViewWorldPosition - surfaceWorldPosition;
+
+    v_texcoord = texcoord;
 }`;
 
 
@@ -40,6 +44,9 @@ uniform vec3 LightDirection;
 varying vec3 v_normal;
 varying vec3 v_surfaceToLight;
 varying vec3 v_surfaceToView;
+varying vec2 v_texcoord;
+
+uniform sampler2D u_texture;
 
 void main() {
     vec3 normal = normalize(v_normal);
@@ -58,7 +65,11 @@ void main() {
     float light = inLight * dot(normal, surfaceToLightDirection);
     float specular = inLight * pow(dot(normal, halfVector), shininess);
     
+    vec4 TextureColor = texture2D(u_texture, v_texcoord);
+
     gl_FragColor = color;
     gl_FragColor.rgb *= light;
     gl_FragColor.rgb += specular;
+
+    gl_FragColor += TextureColor;
 }`;
