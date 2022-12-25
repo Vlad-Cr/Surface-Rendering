@@ -5,8 +5,8 @@ let surface;                    // A surface model
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 let InputCounter = 0.0;
-let UControllerShift = 0;
-let VControllerShift = 0;
+let ScalePointLocationU = 0.0;
+let ScalePointLocationV = 0.0;
 let ControllerScaleValue = 1;
 
 function deg2rad(angle) {
@@ -19,6 +19,8 @@ function Model(name) {
     this.iVertexBuffer = gl.createBuffer();
     this.iNormalBuffer = gl.createBuffer();
     this.iTextureBuffer = gl.createBuffer();
+
+    this.iPointVertexBuffer = gl.createBuffer();
 
     this.count = 0;
 
@@ -33,10 +35,14 @@ function Model(name) {
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iTextureBuffer)
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(texCoords), gl.STREAM_DRAW);
 
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iPointVertexBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([0, 0, 0]), gl.DYNAMIC_DRAW);
+
         this.count = vertices.length/3;
     }
 
     this.Draw = function() {
+        gl.uniform1i(shProgram.iDrawPoint, false);
 
         gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
         gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
@@ -51,6 +57,18 @@ function Model(name) {
         gl.enableVertexAttribArray(shProgram.iTextureCoords);
 
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, this.count);
+
+        // Draw point
+
+        gl.uniform1i(shProgram.iDrawPoint, true);
+
+        gl.uniform3fv(shProgram.iScalePointWorldLocation, [CalcX(ScalePointLocationU, ScalePointLocationV), CalcY(ScalePointLocationU, ScalePointLocationV), CalcZ(ScalePointLocationU, ScalePointLocationV)]);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.iVertexBuffer);
+        gl.vertexAttribPointer(shProgram.iAttribVertex, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(shProgram.iAttribVertex);
+     
+        gl.drawArrays(gl.POINTS, 0, 1);
     }
 }
 
@@ -79,6 +97,10 @@ function ShaderProgram(name, program) {
 
     this.iScalePointLocation = -1;
     this.iScaleValue = -1;
+
+    this.iDrawPoint = -1;
+
+    this.iScalePointWorldLocation = -1;
    
     this.Use = function() {
         gl.useProgram(this.prog);
@@ -108,9 +130,8 @@ function draw() {
     var worldInverseMatrix = m4.inverse(matAccum1);
     var worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
 
-    gl.uniform3fv(shProgram.iViewWorldPosition, [0, 0, 0]); // ?
+    gl.uniform3fv(shProgram.iViewWorldPosition, [0, 0, 0]); 
 
-    //[Math.sin(InputCounter) * 2, 8, -10]
     gl.uniform3fv(shProgram.iLightWorldPosition, CalcParabola());
     gl.uniform3fv(shProgram.iLightDirection, [0, -1, 0]);
 
@@ -120,11 +141,11 @@ function draw() {
     
     gl.uniform4fv(shProgram.iColor, [0.5,0.5,0.5,1] );
 
-    gl.uniform2fv(shProgram.iScalePointLocation, [UControllerShift, VControllerShift] );
+    gl.uniform2fv(shProgram.iScalePointLocation, [ScalePointLocationU / 360.0, ScalePointLocationV / 90.0] );
     gl.uniform1f(shProgram.iScaleValue, ControllerScaleValue);
 
     gl.uniform1i(shProgram.iTexture, 0);
-
+    
     surface.Draw();
 }
 
@@ -186,6 +207,17 @@ function CreateSurfaceData()
     }
 
     return [vertexList, normalsList, textCoords];
+}
+
+function CreatePointData()
+{
+    let vertexList = [
+
+
+
+    ];
+    let normalsList = [];
+    let textCoords = [];
 }
 
 function CalcX(u, v)
@@ -277,6 +309,9 @@ function initGL() {
     shProgram.iScalePointLocation        = gl.getUniformLocation(prog, "ScalePointLocation");
     shProgram.iScaleValue                = gl.getUniformLocation(prog, "ScaleValue");
     
+    shProgram.iDrawPoint                 = gl.getUniformLocation(prog, "bDrawpoint");
+
+    shProgram.iScalePointWorldLocation   = gl.getUniformLocation(prog, "ScalePointWorldLocation");
 
     surface = new Model('Surface');
     let SurfaceData = CreateSurfaceData();
@@ -362,13 +397,25 @@ window.addEventListener("keydown", function (event) {
         case "W":
             ProcessWDown();
             break;
+        case "w":
+            ProcessWDown();
+            break;
         case "S":
+            ProcessSDown();
+            break;
+        case "s":
             ProcessSDown();
             break;
         case "A":
             ProcessADown();
             break;
+        case "a":
+            ProcessADown();
+            break;
         case "D":
+            ProcessDDown();
+            break;
+        case "d":
             ProcessDDown();
             break;
         case "+":
@@ -405,8 +452,8 @@ function LoadTexture()
     var texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
 
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
  
@@ -419,7 +466,6 @@ function LoadTexture()
     image.addEventListener('load', function() {
         gl.bindTexture(gl.TEXTURE_2D, texture);
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,gl.UNSIGNED_BYTE, image);
-        gl.generateMipmap(gl.TEXTURE_2D);
 
         console.log("Texture is loaded!");
 
@@ -429,36 +475,38 @@ function LoadTexture()
 
 function ProcessWDown()
 {
-    VControllerShift += 0.01;
-    VControllerShift = clamp(VControllerShift, 0.0, 1.0);
+    ScalePointLocationV -= 5.0;
+    ScalePointLocationV = clamp(ScalePointLocationV, 0.0, 90);
 }
 
 function ProcessSDown()
 {
-    VControllerShift -= 0.01;
-    VControllerShift = clamp(VControllerShift, 0.0, 1.0);
+    ScalePointLocationV += 5.0;
+    ScalePointLocationV = clamp(ScalePointLocationV, 0.0, 90);
 }
 
 function ProcessADown()
 {
-    UControllerShift -= 0.01;
-    UControllerShift = clamp(UControllerShift, 0.0, 1.0);
+    ScalePointLocationU -= 5.0;
+    ScalePointLocationU = clamp(ScalePointLocationU, 0.0, 360);
 }
 
 function ProcessDDown()
 {
-    UControllerShift += 0.01;
-    UControllerShift = clamp(UControllerShift, 0.0, 1.0);
+    ScalePointLocationU += 5.0;
+    ScalePointLocationU = clamp(ScalePointLocationU, 0.0, 360);
 }
 
 function ProcessPlusDown()
 {
     ControllerScaleValue += 0.05;
+    ControllerScaleValue = clamp(ControllerScaleValue, 0.5, 2.0);
 }
 
 function ProcessSubtractDown()
 {
     ControllerScaleValue -= 0.05;
+    ControllerScaleValue = clamp(ControllerScaleValue, 0.5, 2.0);
 }
 
 function clamp(value, min, max)
