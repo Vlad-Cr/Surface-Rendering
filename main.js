@@ -5,6 +5,9 @@ let surface;                    // A surface model
 let shProgram;                  // A shader program
 let spaceball;                  // A SimpleRotator object that lets the user rotate the view by mouse.
 let InputCounter = 0.0;
+let UControllerShift = 0;
+let VControllerShift = 0;
+let ControllerScaleValue = 1;
 
 function deg2rad(angle) {
     return angle * Math.PI / 180;
@@ -73,6 +76,9 @@ function ShaderProgram(name, program) {
     this.iViewWorldPosition = -1;
 
     this.iTexture = -1;
+
+    this.iScalePointLocation = -1;
+    this.iScaleValue = -1;
    
     this.Use = function() {
         gl.useProgram(this.prog);
@@ -113,6 +119,9 @@ function draw() {
     gl.uniformMatrix4fv(shProgram.iWorldMatrix, false, matAccum1 );
     
     gl.uniform4fv(shProgram.iColor, [0.5,0.5,0.5,1] );
+
+    gl.uniform2fv(shProgram.iScalePointLocation, [UControllerShift, VControllerShift] );
+    gl.uniform1f(shProgram.iScaleValue, ControllerScaleValue);
 
     gl.uniform1i(shProgram.iTexture, 0);
 
@@ -265,6 +274,10 @@ function initGL() {
     
     shProgram.iTexture                   = gl.getUniformLocation(prog, "u_texture");
 
+    shProgram.iScalePointLocation        = gl.getUniformLocation(prog, "ScalePointLocation");
+    shProgram.iScaleValue                = gl.getUniformLocation(prog, "ScaleValue");
+    
+
     surface = new Model('Surface');
     let SurfaceData = CreateSurfaceData();
     surface.BufferData(SurfaceData[0], SurfaceData[1], SurfaceData[2]);
@@ -346,21 +359,39 @@ window.addEventListener("keydown", function (event) {
       case "ArrowRight":
         ProcessArrowRightDown();
         break;
+        case "W":
+            ProcessWDown();
+            break;
+        case "S":
+            ProcessSDown();
+            break;
+        case "A":
+            ProcessADown();
+            break;
+        case "D":
+            ProcessDDown();
+            break;
+        case "+":
+            ProcessPlusDown();
+            break;
+        case "-":
+            ProcessSubtractDown();
+            break;
       default:
-        return; 
+            break; 
     }
+
+    draw();
 });
 
 function ProcessArrowLeftDown()
 {
     InputCounter -= 0.05;
-    draw();
 }
 
 function ProcessArrowRightDown()
 {
     InputCounter += 0.05;
-    draw();
 }
 
 function CalcParabola()
@@ -373,6 +404,11 @@ function LoadTexture()
 {
     var texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
  
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE,
               new Uint8Array([0, 0, 255, 255]));
@@ -389,4 +425,52 @@ function LoadTexture()
 
         draw();
     });
+}
+
+function ProcessWDown()
+{
+    VControllerShift += 0.01;
+    VControllerShift = clamp(VControllerShift, 0.0, 1.0);
+}
+
+function ProcessSDown()
+{
+    VControllerShift -= 0.01;
+    VControllerShift = clamp(VControllerShift, 0.0, 1.0);
+}
+
+function ProcessADown()
+{
+    UControllerShift -= 0.01;
+    UControllerShift = clamp(UControllerShift, 0.0, 1.0);
+}
+
+function ProcessDDown()
+{
+    UControllerShift += 0.01;
+    UControllerShift = clamp(UControllerShift, 0.0, 1.0);
+}
+
+function ProcessPlusDown()
+{
+    ControllerScaleValue += 0.05;
+}
+
+function ProcessSubtractDown()
+{
+    ControllerScaleValue -= 0.05;
+}
+
+function clamp(value, min, max)
+{
+    if(value < min)
+    {
+        value = min
+    }
+    else if(value > max)
+    {
+        value = max;
+    }
+
+    return value;
 }
